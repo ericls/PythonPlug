@@ -1,7 +1,8 @@
-import time
 import logging
-from PyPlug.conn import Conn
-from PyPlug.plug import Plug
+import time
+
+from PythonPlug.conn import Conn
+from PythonPlug.plug import Plug
 
 
 class LoggerPlug(Plug):
@@ -17,13 +18,10 @@ class LoggerPlug(Plug):
 
     async def after_start(self, conn: Conn):
         logging_args = {
-            'method': conn.scope.get("method"),
-            'path': conn.scope.get("path"),
-            'timems': (time.time() - conn.logger_plug_start_time) * 1000,
+            "method": conn.scope.get("method"),
+            "path": conn.scope.get("path"),
+            "timems": (time.time() - conn.logger_plug_start_time) * 1000,
         }
         self.logger.log(
-            self.level,
-            "{method}: {path} ({timems}ms)".format_map(
-                logging_args
-            )
+            self.level, "{method}: {path} ({timems}ms)".format_map(logging_args)
         )

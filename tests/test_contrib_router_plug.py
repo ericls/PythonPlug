@@ -1,5 +1,5 @@
-from PyPlug.contrib.plug.router_plug import RouterPlug
-from PyPlug.plug import Plug
+from PythonPlug.contrib.plug.router_plug import RouterPlug
+from PythonPlug.plug import Plug
 
 
 def test_router_plug(adapter):
@@ -108,10 +108,9 @@ def test_sub_route_forwarding_change_path(adapter):
 
     my_router.forward(prefix="/sub", router=sub_route)
 
-
     async def sub_router2_foo(conn):
-        return await conn.send_resp(conn.scope['path'].encode(), halt=True)
-        
+        return await conn.send_resp(conn.scope["path"].encode(), halt=True)
+
     sub_route2.forward(prefix="/foo", router=sub_router2_foo, change_path=True)
 
     app = adapter(my_router)

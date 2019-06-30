@@ -3,8 +3,8 @@ import os
 
 from starlette.staticfiles import StaticFiles
 
-from PyPlug import ASGIAdapter, Conn, Plug
-from PyPlug.contrib.plug.router_plug import RouterPlug
+from PythonPlug import ASGIAdapter, Conn, Plug
+from PythonPlug.contrib.plug.router_plug import RouterPlug
 
 from .logger_plug import LoggerPlug
 
@@ -15,6 +15,7 @@ async def handle_static(conn: Conn):
     await conn.call_asgi_app(
         StaticFiles(directory=os.path.join(os.path.dirname(__file__), "./static"))
     )
+
 
 my_router.forward("/static/foo", handle_static, change_path=True)
 

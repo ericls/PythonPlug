@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
+from typing import List
 
 
 class Plug(ABC):
-    plugs = []
+    plugs: List["Plug"] = []
 
     def __init__(self):
         pass

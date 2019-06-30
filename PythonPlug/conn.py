@@ -1,12 +1,12 @@
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from operator import itemgetter
-from typing import Optional, Union
+from typing import List, Optional, Union
 from urllib.parse import parse_qsl
 
 from multidict import CIMultiDict
 
-from .exception import HTTPRequestError, HTTPStateError, PyPlugRuntimeError
+from .exception import HTTPRequestError, HTTPStateError, PythonPlugRuntimeError
 from .typing import CoroutineFunction
 
 
@@ -39,13 +39,14 @@ class Conn:  # pylint: disable=too-many-instance-attributes
         # conn fields
         self.halted = False
         self.started = False
-        self.callbacks = {"before_send": [], "after_send": []}
 
         # private fields
         self.private: dict = {}
 
         # hooks
-        self._after_start = []
+        self._after_start: List[CoroutineFunction] = []
+        self._before_send: List[CoroutineFunction] = []
+        self._after_send: List[CoroutineFunction] = []
 
     @property
     def req_headers(self) -> CIMultiDict:
@@ -86,12 +87,18 @@ class Conn:  # pylint: disable=too-many-instance-attributes
         if not self._send:
             raise HTTPStateError("Conn is not plugged.")
         await self._send(message, *args, **kwargs)
-        if not self.started and message.get('type') == 'http.response.start':
+        if not self.started and message.get("type") == "http.response.start":
             self.started = True
             for callback in self._after_start:
                 await callback(self)
-        if not self.halted and message.get('type') == 'http.response.body' and message.get('more_body', False) is False:
+        if (
+            not self.halted
+            and message.get("type") == "http.response.body"
+            and message.get("more_body", False) is False
+        ):
             self.halted = True
+            for callback in self._after_send:
+                await callback(self)
         return self
 
     async def receive(self, *args, **kwargs):
@@ -121,7 +128,7 @@ class Conn:  # pylint: disable=too-many-instance-attributes
                 continue
             chunk = message.get("body", b"")
             if not isinstance(chunk, bytes):
-                raise PyPlugRuntimeError("Chunk is not bytes")
+                raise PythonPlugRuntimeError("Chunk is not bytes")
             if save:
                 self.http_body += chunk
             self.http_has_more_body = message.get("more_body", False) or False
@@ -202,6 +209,9 @@ class Conn:  # pylint: disable=too-many-instance-attributes
     async def call_asgi_app(self, asgi_app):
         await asgi_app(self.scope)(self.receive, self.send)
         return self
+
+    def register_after_send(self, callback):
+        self._after_send.append(callback)
 
     def register_after_start(self, callback):
         self._after_start.append(callback)

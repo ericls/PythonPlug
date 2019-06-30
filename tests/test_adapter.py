@@ -1,4 +1,4 @@
-from PyPlug.adapter import ASGIAdapter
+from PythonPlug.adapter import ASGIAdapter
 
 
 def test_adapter():

@@ -6,9 +6,8 @@ from typing import Callable, Iterable, Optional
 
 from werkzeug.routing import Map, MethodNotAllowed, NotFound, RequestRedirect, Rule
 
-from PyPlug import Conn
-from PyPlug.plug import Plug
-
+from PythonPlug import Conn
+from PythonPlug.plug import Plug
 
 Forward = namedtuple("Forward", ["to", "change_path"])
 

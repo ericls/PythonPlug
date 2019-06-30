@@ -1,4 +1,4 @@
-from PyPlug.plug import Plug
+from PythonPlug.plug import Plug
 
 
 def test_plug_plugs(adapter, echo_plug):

@@ -1,13 +1,12 @@
 import types
 from asyncio import Future
 
-import aiohttp
 import pytest
 from starlette.testclient import TestClient
 
-from PyPlug.adapter import ASGIAdapter
-from PyPlug.conn import Conn
-from PyPlug.plug import Plug
+from PythonPlug.adapter import ASGIAdapter
+from PythonPlug.conn import Conn
+from PythonPlug.plug import Plug
 
 
 class TestAdapter(ASGIAdapter):

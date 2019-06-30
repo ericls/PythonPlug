@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from PyPlug.conn import Conn
-from PyPlug.exception import HTTPRequestError, HTTPStateError, PyPlugRuntimeError
+from PythonPlug.conn import Conn
+from PythonPlug.exception import HTTPRequestError, HTTPStateError, PythonPlugRuntimeError
 
 from .conftest import CustomReceiveAdapter
 
@@ -189,7 +189,7 @@ def test_wrong_content_length(echo_app):
     prepared = requests.Request("POST", "http://testserver/", data=body()).prepare()
     with pytest.raises(HTTPRequestError):
         # Normal clients won't do this, and this is not valid HTTP bahaviour
-        # but it serves the purpose to test PyPlug
+        # but it serves the purpose to test PythonPlug
         prepared.headers["content-length"] = "1"
         prepared.headers["Expect"] = "100-continue"
         prepared.headers["Transfer-Encoding"] = "identity"
@@ -197,7 +197,7 @@ def test_wrong_content_length(echo_app):
 
 
 def test_non_bytes_body(echo_app):
-    with pytest.raises(PyPlugRuntimeError):
+    with pytest.raises(PythonPlugRuntimeError):
         import os
 
         echo_app.test_client.post("/", data=os)
@@ -292,21 +292,38 @@ def test_multiple_body_iter(adapter):
 
 def test_after_start_callback(adapter):
     mock = MagicMock()
+
     async def cb(conn):
         mock(conn)
+
     async def plug(conn: Conn):
         conn.register_after_start(cb)
-        await conn.send_resp(b'', halt=True)
+        await conn.send_resp(b"", halt=True)
+
     app = adapter(plug)
     mock.assert_not_called()
-    app.test_client.get('/')
+    app.test_client.get("/")
+    mock.assert_called_once()
+
+
+def test_after_send_callback(adapter):
+    mock = MagicMock()
+
+    async def cb(conn):
+        mock(conn)
+
+    async def plug(conn: Conn):
+        conn.register_after_send(cb)
+        await conn.send_resp(b"", halt=True)
+
+    app = adapter(plug)
+    mock.assert_not_called()
+    app.test_client.get("/")
     mock.assert_called_once()
 
 
 def test_call_asgi_app(adapter):
-
     class Application:
-
         def __init__(self, scope):
             self.scope = scope
 
@@ -318,6 +335,6 @@ def test_call_asgi_app(adapter):
         await conn.call_asgi_app(Application)
 
     app = adapter(plug)
-    res = app.test_client.get('/')
-    assert res.content == b'foo'
+    res = app.test_client.get("/")
+    assert res.content == b"foo"
     assert app.conn.halted == True

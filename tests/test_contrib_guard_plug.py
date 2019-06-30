@@ -1,4 +1,4 @@
-from PyPlug.contrib.plug.guard_plug import GuardPlug
+from PythonPlug.contrib.plug.guard_plug import GuardPlug
 
 
 def test_guard_plug(adapter):

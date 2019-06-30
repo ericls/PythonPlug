@@ -1,6 +1,6 @@
 import json
 
-from PyPlug.conn import Conn
+from PythonPlug.conn import Conn
 
 
 async def send_json(conn: Conn, data, *, status=None, halt=True):
