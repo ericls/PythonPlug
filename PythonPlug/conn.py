@@ -9,8 +9,11 @@ from multidict import CIMultiDict
 from .exception import HTTPRequestError, HTTPStateError, PythonPlugRuntimeError
 from .typing import CoroutineFunction
 
-
 class Conn:  # pylint: disable=too-many-instance-attributes
+
+    ASGI2 = "ASGI2"
+    ASGI3 = "ASGI3"
+
     def __init__(
         self,
         *,
@@ -47,6 +50,9 @@ class Conn:  # pylint: disable=too-many-instance-attributes
         self._after_start: List[CoroutineFunction] = []
         self._before_send: List[CoroutineFunction] = []
         self._after_send: List[CoroutineFunction] = []
+
+        # meta
+        self.interface = Conn.ASGI2  # ASGI2, ASGI3
 
     @property
     def req_headers(self) -> CIMultiDict:
@@ -206,8 +212,12 @@ class Conn:  # pylint: disable=too-many-instance-attributes
         await self.send_resp(body, halt=True)
         return self
 
-    async def call_asgi_app(self, asgi_app):
-        await asgi_app(self.scope)(self.receive, self.send)
+    async def call_asgi_app(self, asgi_app, interface=None):
+        interface = interface or self.interface
+        if interface == Conn.ASGI2:
+            await asgi_app(self.scope)(self.receive, self.send)
+        elif interface == Conn.ASGI3:
+            await asgi_app(self.scope, self.receive, self.send)
         return self
 
     def register_after_send(self, callback):

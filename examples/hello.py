@@ -6,7 +6,7 @@ from starlette.staticfiles import StaticFiles
 from PythonPlug import ASGIAdapter, Conn, Plug
 from PythonPlug.contrib.plug.router_plug import RouterPlug
 
-from .logger_plug import LoggerPlug
+from logger_plug import LoggerPlug
 
 my_router = RouterPlug()
 

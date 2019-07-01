@@ -23,7 +23,7 @@ class ASGIAdapter:
     ):
         handler = self.ASGIHandler(scope, self)
         if receive and send:
-            return handler(receive, send)  # ASGI 3.0
+            return handler(receive, send, interface=Conn.ASGI3)  # ASGI 3.0
         return handler  # ASGI 2.0
 
     class ASGIHandler:
@@ -31,7 +31,8 @@ class ASGIAdapter:
             self.scope = scope
             self.adapter = adapter
 
-        async def __call__(self, receive: CoroutineFunction, send: CoroutineFunction):
+        async def __call__(self, receive: CoroutineFunction, send: CoroutineFunction, interface=Conn.ASGI2):
             conn = self.adapter.ConnClass(scope=self.scope, receive=receive, send=send)
+            conn.interface = interface
             await self.adapter.plug(conn)
             self.adapter.conn = conn
