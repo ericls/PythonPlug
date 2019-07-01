@@ -3,7 +3,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from PythonPlug.conn import Conn
-from PythonPlug.exception import HTTPRequestError, HTTPStateError, PythonPlugRuntimeError
+from PythonPlug.exception import (
+    HTTPRequestError,
+    HTTPStateError,
+    PythonPlugRuntimeError,
+)
 
 from .conftest import CustomReceiveAdapter
 
