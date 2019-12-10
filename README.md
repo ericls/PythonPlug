@@ -1,6 +1,6 @@
 # PythonPlug
 
-[![CircleCI](https://circleci.com/gh/ericls/PythonPlug.svg?style=shield)](https://circleci.com/gh/ericls/PythonPlug)
+[![Github Actions](https://github.com/ericls/PythonPlug/workflows/Build/badge.svg)](https://github.com/ericls/PythonPlug/actions)
 [![Code Coverage](https://codecov.io/gh/ericls/PythonPlug/branch/master/graph/badge.svg)](https://codecov.io/gh/ericls/PythonPlug)
 [![Python Version](https://img.shields.io/pypi/pyversions/PythonPlug.svg)](https://pypi.org/project/PythonPlug/)
 [![PyPI Package](https://img.shields.io/pypi/v/PythonPlug.svg)](https://pypi.org/project/PythonPlug/)
