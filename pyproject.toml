@@ -9,8 +9,8 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.6,<4"
-multidict = "^4.5"
-Werkzeug = "^0.15.4"
+multidict = ">=4.5"
+Werkzeug = ">=0.15.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
