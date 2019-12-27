@@ -1,16 +1,14 @@
-import types
 from asyncio import Future
 
 import pytest
 from starlette.testclient import TestClient
 
 from PythonPlug.adapter import ASGIAdapter
-from PythonPlug.conn import Conn
-from PythonPlug.plug import Plug
+from PythonPlug.conn import ConnWithWS
 
 
 class TestAdapter(ASGIAdapter):
-    ConnClass = Conn
+    ConnClass = ConnWithWS
 
     def __init__(self, plug) -> None:
         super().__init__(plug)
@@ -42,7 +40,7 @@ class CustomReceiveAdapter(TestAdapter):
     def get_conn(self):
         this = self
 
-        class _Conn(Conn):
+        class _Conn(ConnWithWS):
             async def receive(self):
                 return await this.receiver()
 

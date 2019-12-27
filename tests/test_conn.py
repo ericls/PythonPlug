@@ -1,8 +1,10 @@
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from starlette.websockets import WebSocketDisconnect
 
-from PythonPlug.conn import Conn
+from PythonPlug.conn import Conn, ConnType, ConnWithWS, WSState
 from PythonPlug.exception import (
     HTTPRequestError,
     HTTPStateError,
@@ -15,22 +17,22 @@ from .conftest import CustomReceiveAdapter
 def test_conn_response(app):
     res = app.test_client.get("/")
     assert res.status_code == 200
-    assert app.conn.halted == True
+    assert app.conn.halted is True
     assert res.content == b"hello"
 
 
 def test_conn_query_params(app):
-    res = app.test_client.get("/?a=foo&b=bar")
+    app.test_client.get("/?a=foo&b=bar")
     assert app.conn.query_params == {"a": "foo", "b": "bar"}
 
 
 def test_conn_path(app):
-    res = app.test_client.get("/foo")
+    app.test_client.get("/foo")
     assert app.conn.scope.get("path") == "/foo"
 
 
 def test_request_headers(app):
-    res = app.test_client.get("/", headers={"foo": "bar", "host": "example.com"})
+    app.test_client.get("/", headers={"foo": "bar", "host": "example.com"})
     assert app.conn.req_headers.get("host") == "example.com"
     assert app.conn.req_headers.get("foo") == "bar"
 
@@ -48,8 +50,6 @@ def test_http_status(adapter):
 
 
 def test_other_message_type(echo_plug):
-
-    from asyncio import Future
 
     app = CustomReceiveAdapter(
         echo_plug,
@@ -73,8 +73,6 @@ def test_chunked_response(adapter):
 
 
 def test_chunked_request(adapter):
-    import requests
-
     async def plug(conn):
         async for chunk in conn.body_iter():
             await conn.send_resp(chunk)
@@ -101,8 +99,6 @@ def test_redirect(adapter):
 
 
 def test_body_after_body_iter(adapter):
-    import requests
-
     async def plug(conn):
         async for chunk in conn.body_iter():
             await conn.send_resp(chunk)
@@ -257,16 +253,14 @@ def test_halt_after_halt(adapter):
         app.test_client.get("/")
 
 
-def test_not_plugged(adapter, echo_plug):
-    import asyncio
-
+def test_not_plugged():
     conn = Conn(scope={})
 
     async def send():
         await conn.send(b"foo")
 
     async def receive():
-        await conn.receive(b"foo")
+        await conn.receive()
 
     loop = asyncio.get_event_loop()
     with pytest.raises(HTTPStateError):
@@ -342,3 +336,48 @@ def test_call_asgi_app(adapter):
     res = app.test_client.get("/")
     assert res.content == b"foo"
     assert app.conn.halted == True
+
+
+def test_websocket(adapter):
+    async def ws_plug(conn: ConnWithWS):
+        assert conn.type == ConnType.ws
+        assert conn.ws_state == WSState.init
+        await conn.ws_accept()
+        assert conn.ws_state == WSState.open
+        message = await conn.ws_receive()
+        assert message == "foo"
+        await conn.ws_send(message)
+        message = await conn.ws_receive()
+        assert message == b"bar"
+        await conn.ws_send(message)
+        await conn.ws_close()
+
+    app = adapter(ws_plug)
+    with app.test_client.websocket_connect("/") as session:
+        session.send_text("foo")
+        session.send_bytes(b"bar")
+        messages = [session.receive_text(), session.receive_bytes()]
+        with pytest.raises(WebSocketDisconnect):
+            session.receive_bytes()
+        assert messages == ["foo", b"bar"]
+
+
+def test_websocket_client_close(adapter):
+    async def ws_plug(conn: ConnWithWS):
+        await conn.ws_accept()
+        assert conn.ws_state == WSState.open
+        async for i in conn.ws_iter_messages():
+            await conn.ws_send(i)
+        assert conn.ws_state == WSState.closed
+        with pytest.raises(HTTPStateError):
+            await conn.ws_send("foo")
+        with pytest.raises(HTTPStateError):
+            await conn.ws_receive()
+
+    app = adapter(ws_plug)
+    with app.test_client.websocket_connect("/") as session:
+        session.send_text("foo")
+        session.send_bytes(b"bar")
+        messages = [session.receive_text(), session.receive_bytes()]
+        session.close()
+        assert messages == ["foo", b"bar"]

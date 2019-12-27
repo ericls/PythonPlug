@@ -1,6 +1,6 @@
 from typing import Optional
 
-from .conn import Conn
+from .conn import ConnWithWS
 from .typing import CoroutineFunction
 
 
@@ -10,7 +10,7 @@ class ASGIAdapter:
     Converts a plug to an ASGI Application
     """
 
-    ConnClass = Conn
+    ConnClass = ConnWithWS
 
     def __init__(self, plug: CoroutineFunction) -> None:
         self.plug = plug
@@ -23,7 +23,7 @@ class ASGIAdapter:
     ):
         handler = self.ASGIHandler(scope, self)
         if receive and send:
-            return handler(receive, send, interface=Conn.ASGI3)  # ASGI 3.0
+            return handler(receive, send, interface=ConnWithWS.ASGI3)  # ASGI 3.0
         return handler  # ASGI 2.0
 
     class ASGIHandler:
@@ -35,7 +35,7 @@ class ASGIAdapter:
             self,
             receive: CoroutineFunction,
             send: CoroutineFunction,
-            interface=Conn.ASGI2,
+            interface=ConnWithWS.ASGI2,
         ):
             conn = self.adapter.ConnClass(scope=self.scope, receive=receive, send=send)
             conn.interface = interface

@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         poetry install
-    - name: Lint with flake8
+    - name: Lint with pylint
       run: |
         poetry run pylint PythonPlug
     - name: Test with pytest
