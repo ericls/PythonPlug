@@ -5,8 +5,11 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from PythonPlug.conn import Conn, ConnType, ConnWithWS, WSState
-from PythonPlug.exception import (HTTPRequestError, HTTPStateError,
-                                  PythonPlugRuntimeError)
+from PythonPlug.exception import (
+    HTTPRequestError,
+    HTTPStateError,
+    PythonPlugRuntimeError,
+)
 
 from .conftest import CustomReceiveAdapter
 
@@ -96,7 +99,6 @@ def test_redirect(adapter):
 
 
 def test_body_after_body_iter(adapter):
-
     async def plug(conn):
         async for chunk in conn.body_iter():
             await conn.send_resp(chunk)
@@ -354,10 +356,7 @@ def test_websocket(adapter):
     with app.test_client.websocket_connect("/") as session:
         session.send_text("foo")
         session.send_bytes(b"bar")
-        messages = [
-            session.receive_text(),
-            session.receive_bytes()
-        ]
+        messages = [session.receive_text(), session.receive_bytes()]
         with pytest.raises(WebSocketDisconnect):
             session.receive_bytes()
         assert messages == ["foo", b"bar"]
@@ -379,9 +378,6 @@ def test_websocket_client_close(adapter):
     with app.test_client.websocket_connect("/") as session:
         session.send_text("foo")
         session.send_bytes(b"bar")
-        messages = [
-            session.receive_text(),
-            session.receive_bytes()
-        ]
+        messages = [session.receive_text(), session.receive_bytes()]
         session.close()
         assert messages == ["foo", b"bar"]
