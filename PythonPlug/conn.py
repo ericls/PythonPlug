@@ -1,13 +1,19 @@
+from enum import Enum
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from operator import itemgetter
-from typing import List, Optional, Union
+from typing import List, Optional, Union, ByteString
 from urllib.parse import parse_qsl
 
 from multidict import CIMultiDict
 
 from .exception import HTTPRequestError, HTTPStateError, PythonPlugRuntimeError
 from .typing import CoroutineFunction
+
+
+class ConnType(Enum):
+    ws = "websocket"
+    http = "http"
 
 
 class Conn:  # pylint: disable=too-many-instance-attributes
@@ -20,7 +26,7 @@ class Conn:  # pylint: disable=too-many-instance-attributes
         *,
         scope: dict,
         receive: Optional[CoroutineFunction] = None,
-        send: Optional[CoroutineFunction] = None
+        send: Optional[CoroutineFunction] = None,
     ) -> None:
 
         self._receive = receive
@@ -41,8 +47,8 @@ class Conn:  # pylint: disable=too-many-instance-attributes
         self.status: Union[int, HTTPStatus] = 0
 
         # conn fields
-        self.halted = False
-        self.started = False
+        self.halted: bool = False
+        self.started: bool = False
 
         # private fields
         self.private: dict = {}
@@ -81,8 +87,8 @@ class Conn:  # pylint: disable=too-many-instance-attributes
         return self._scope
 
     @property
-    def type(self):
-        return self.scope.get("type")
+    def type(self) -> ConnType:
+        return ConnType.ws if self.scope.get("type") == "websocket" else ConnType.http
 
     @property
     def query_params(self):
@@ -108,14 +114,14 @@ class Conn:  # pylint: disable=too-many-instance-attributes
                 await callback(self)
         return self
 
-    async def receive(self, *args, **kwargs):
+    async def receive(self):
         if not self._receive:
             raise HTTPStateError("Conn is not plugged.")
-        return await self._receive(*args, **kwargs)
+        return await self._receive()
 
-    async def body_iter(self, save=True):
-        if not self.type == "http":
-            raise HTTPRequestError("Request is not HTTP")
+    async def body_iter(self):
+        if not self.type == ConnType.http:
+            raise HTTPRequestError("Conn.type is not HTTP")
         if self.http_received_body_length > 0 and self.http_has_more_body:
             raise HTTPStateError("body iter is already started and is not finished")
         if self.http_received_body_length > 0 and not self.http_has_more_body:
@@ -136,8 +142,7 @@ class Conn:  # pylint: disable=too-many-instance-attributes
             chunk = message.get("body", b"")
             if not isinstance(chunk, bytes):
                 raise PythonPlugRuntimeError("Chunk is not bytes")
-            if save:
-                self.http_body += chunk
+            self.http_body += chunk
             self.http_has_more_body = message.get("more_body", False) or False
             self.http_received_body_length += len(chunk)
             yield chunk
@@ -232,3 +237,84 @@ class Conn:  # pylint: disable=too-many-instance-attributes
             return itemgetter(name)(self.private)
         except KeyError:
             return None
+
+
+class WSState(Enum):
+    init = "init"
+    connecting = "connecting"
+    open = "open"
+    closing = "closing"
+    closed = "closed"
+
+
+class ConnWithWS(Conn):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ws_state: WSState = WSState.init
+        self.closing_code: Optional[int] = None
+
+    async def ws_close(self, code: int = 1000):
+        await self.send({"type": "websocket.close", "code": code})
+        self.ws_state = WSState.closing
+        self.closing_code = code
+
+    async def ws_accept(self, subprotocol: Optional[str] = None):
+        if self.ws_state == WSState.init:
+            await self.ws_receive()
+        if self.ws_state != WSState.connecting:
+            raise HTTPStateError(
+                f"Accepting websocket connection in state: {self.ws_state}. Exepcting {WSState.connecting}"
+            )
+        await self.send(
+            {
+                "type": "websocket.accept",
+                "subprotocol": subprotocol,
+                "headers": [
+                    [k.encode("ascii"), v.encode("ascii")]
+                    for k, v in self.resp_headers.items()
+                ],
+            }
+        )
+        self.ws_state = WSState.open
+
+    async def ws_receive(self):
+        if self.ws_state == WSState.closed:
+            raise HTTPStateError("Receiving on closed ws connection")
+        message = await super().receive()
+        if self.ws_state == WSState.init:
+            if message["type"] != "websocket.connect":
+                raise HTTPStateError(
+                    f"Expecting websocket.connect message, but got {message['type']}"
+                )
+            self.ws_state = WSState.connecting
+            return self.ws_state
+        if message["type"] == "websocket.disconnect":
+            self.ws_state = WSState.closed
+            self.closing_code = message["code"]
+            return self.ws_state
+        # messages should be of type websocket.receive now
+        if 'bytes' in message and message['bytes'] is not None:
+            return message['bytes']
+        return message['text']
+
+    async def ws_iter_messages(self):
+        if self.ws_state != WSState.open:
+            raise HTTPStateError(
+                f"Cannot iter messages when connection is not open. Current state: {self.ws_state}"
+            )
+        while True:
+            message = await self.ws_receive()
+            if self.ws_state in [WSState.closed, WSState.closing]:
+                break
+            yield message
+
+
+    async def ws_send(self, text_or_byte: Union[str, ByteString]):
+        if self.ws_state != WSState.open:
+            raise HTTPStateError(
+                f"Cannot send messages when connection is not open. Current state: {self.ws_state}"
+            )
+        if isinstance(text_or_byte, ByteString):
+            await self.send({"type": "websocket.send", "bytes": text_or_byte})
+        else:
+            await self.send({"type": "websocket.send", "text": text_or_byte})

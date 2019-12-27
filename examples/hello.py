@@ -3,7 +3,7 @@ import os
 
 from starlette.staticfiles import StaticFiles
 
-from PythonPlug import ASGIAdapter, Conn, Plug
+from PythonPlug import ASGIAdapter, Conn, Plug, ConnWithWS, ConnType, WSState
 from PythonPlug.contrib.plug.router_plug import RouterPlug
 
 from logger_plug import LoggerPlug
@@ -32,12 +32,22 @@ async def plug(conn):
     return conn
 
 
+@my_router.route("/ws")
+async def ws_plug(conn: ConnWithWS):
+    await conn.ws_accept()
+    async for message in conn.iter_messages():
+        await conn.send_message(message)
+    await conn.ws_close()
+    return conn
+
+
 class Entry(Plug):
 
     plugs = [LoggerPlug(), my_router]
 
-    async def call(self, conn):
-        await conn.send_resp(b"1234", halt=True)
+    async def call(self, conn: ConnWithWS):
+        if not conn.started and conn.type == ConnType.http:
+            await conn.send_resp(b"1234", halt=True)
         return conn
 
 

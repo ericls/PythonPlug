@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "PythonPlug"
-version = "0.1.1"
+version = "0.1.2"
 description = "An ASGI web framework"
 readme = "README.md"
 packages = [{ include = "PythonPlug" }]
@@ -28,6 +28,7 @@ mypy = "*"
 
 ipdb = "*"
 ipython = "*"
+flake8 = "^3.7"
 
 [build-system]
 requires = ["poetry>=0.12"]
